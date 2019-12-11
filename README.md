@@ -2,7 +2,7 @@
 
 ## 1. How does it work?
 
-[how does SecureCRT encrypt password](HOW_DOES_IT_WORK.md)
+[how does SecureCRT encrypt password](doc/how-does-SecureCRT-encrypt-password.md)
 
 ## 2. How to use?
 

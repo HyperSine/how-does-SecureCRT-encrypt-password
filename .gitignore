@@ -1,4 +1,4 @@
-enc_pipeline1.xml
-enc_pipeline2.xml
-dec_pipeline1.xml
-dec_pipeline2.xml
+doc/enc_pipeline1.xml
+doc/enc_pipeline2.xml
+doc/dec_pipeline1.xml
+doc/dec_pipeline2.xml
