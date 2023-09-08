@@ -52,7 +52,7 @@ class SecureCRTCrypto:
         cipher1 = Blowfish.new(self._key1, Blowfish.MODE_CBC, iv = self._iv)
         cipher2 = Blowfish.new(self._key2, Blowfish.MODE_CBC, iv = self._iv)
         return cipher1.encrypt(os.urandom(4) + cipher2.encrypt(plaintext_bytes_padded) + os.urandom(4)).hex()
-    
+
     def decrypt(self, ciphertext: str) -> str:
         '''
         Decrypt `ciphertext` and return the corresponding plaintext.
@@ -69,7 +69,7 @@ class SecureCRTCrypto:
         ciphertext_bytes = bytes.fromhex(ciphertext)
         if len(ciphertext_bytes) <= 8:
             raise ValueError('Bad ciphertext: too short!')
-        
+
         plaintext_bytes_padded = cipher2.decrypt(cipher1.decrypt(ciphertext_bytes)[4:-4])
 
         null_terminator_index = -1
@@ -120,7 +120,7 @@ class SecureCRTCryptoV2:
 
         if len(plaintext_bytes) > 0xffffffff:
             raise OverflowError('Bad plaintext: too long!')
-        
+
         if prefix == '02':
             cipher = AES.new(SHA256.new(self._config_passphrase).digest(), AES.MODE_CBC, iv = b'\x00' * AES.block_size)
         elif prefix == '03':
@@ -129,19 +129,14 @@ class SecureCRTCryptoV2:
             cipher = AES.new(kdf_bytes[:32], mode = AES.MODE_CBC, iv = kdf_bytes[32:])
         else:
             raise NotImplementedError('Unknown prefix: {}'.format(prefix))
-        
+
         # lvc: l -> length, v -> value, c -> checksum
         lvc_bytes = struct.pack('<I', len(plaintext_bytes)) + plaintext_bytes + SHA256.new(plaintext_bytes).digest()
-        
-        if prefix == '02':
-            padding_len = AES.block_size - len(lvc_bytes) % AES.block_size
-        elif prefix == '03':
-            padding_len = AES.block_size - len(lvc_bytes) % AES.block_size
-            if padding_len < AES.block_size // 2:
-                padding_len += AES.block_size
-        else:
-            raise NotImplementedError('Unknown prefix: {}'.format(prefix))
-        
+
+        padding_len = AES.block_size - len(lvc_bytes) % AES.block_size
+        if padding_len < AES.block_size // 2:
+            padding_len += AES.block_size
+
         ciphertext_bytes = cipher.encrypt(lvc_bytes + os.urandom(padding_len))
         if prefix == '03':
             ciphertext_bytes = salt + ciphertext_bytes
@@ -161,7 +156,7 @@ class SecureCRTCryptoV2:
         '''
         ciphertext_bytes = bytes.fromhex(ciphertext)
         prefix = kwargs.get('prefix', '03')
-        
+
         if prefix == '02':
             cipher = AES.new(SHA256.new(self._config_passphrase).digest(), AES.MODE_CBC, iv = b'\x00' * AES.block_size)
         elif prefix == '03':
@@ -174,7 +169,7 @@ class SecureCRTCryptoV2:
             raise NotImplementedError('Unknown prefix: {}'.format(prefix))
 
         padded_bytes = cipher.decrypt(ciphertext_bytes)
-        
+
         plaintext_len, = struct.unpack('<I', padded_bytes[0:4])
         if len(padded_bytes) < 4 + plaintext_len:
             raise ValueError('Bad ciphertext: incorrect plaintext length.')
@@ -186,14 +181,9 @@ class SecureCRTCryptoV2:
         checksum_bytes = padded_bytes[4 + plaintext_len:][:SHA256.digest_size]
         padding_bytes = padded_bytes[4 + plaintext_len + SHA256.digest_size:]
 
-        if prefix == '02':
-            expected_padding_len = AES.block_size - (4 + plaintext_len + SHA256.digest_size) % AES.block_size
-        elif prefix == '03':
-            expected_padding_len = AES.block_size - (4 + plaintext_len + SHA256.digest_size) % AES.block_size
-            if expected_padding_len < AES.block_size // 2:
-                expected_padding_len += AES.block_size
-        else:
-            raise NotImplementedError('Unknown prefix: {}'.format(prefix))
+        expected_padding_len = AES.block_size - (4 + plaintext_len + SHA256.digest_size) % AES.block_size
+        if expected_padding_len < AES.block_size // 2:
+            expected_padding_len += AES.block_size
 
         if len(padding_bytes) != expected_padding_len:
             raise ValueError('Bad ciphertext: incorrect padding.')
